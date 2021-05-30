@@ -1,5 +1,7 @@
 package gregicadditions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 
 import gregtech.api.unification.Element;
@@ -13,6 +15,7 @@ import net.minecraftforge.common.util.EnumHelper;
 import static gregtech.api.GTValues.M;
 import static gregtech.api.unification.material.type.DustMaterial.MatFlags.GENERATE_PLATE;
 import static gregtech.api.unification.material.type.DustMaterial.MatFlags.NO_SMASHING;
+import static gregtech.api.unification.ore.OrePrefix.*;
 
 public class GAEnums {
 
@@ -58,6 +61,14 @@ public class GAEnums {
 
 	public static final Predicate<Material> dust = mat -> mat instanceof DustMaterial;
 	public static final Predicate<Material> ingot = mat -> mat instanceof IngotMaterial;
+
+	public static final List<OrePrefix> WIRE_DOUBLING_ORDER = new ArrayList<OrePrefix>(){{
+		add(wireGtSingle);
+		add(wireGtDouble);
+		add(wireGtQuadruple);
+		add(wireGtOctal);
+		add(wireGtHex);
+	}};
 
 	private static Predicate<Material> pred(Predicate<Material> in) {
 		return mat -> in.test(mat);
