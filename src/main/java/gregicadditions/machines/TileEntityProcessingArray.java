@@ -184,7 +184,7 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 				return null;
 			}
 
-			return this.recipeMap.findRecipe(this.voltageTier, inputs, fluidInputs, this.getMinTankCapacity(this.getOutputTank()));
+			return this.recipeMap.findRecipe(Math.min(this.voltageTier, maxVoltage), inputs, fluidInputs, this.getMinTankCapacity(this.getOutputTank()));
 		}
 
 
