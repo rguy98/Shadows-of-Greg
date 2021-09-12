@@ -184,7 +184,7 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 				return null;
 			}
 
-			return this.recipeMap.findRecipe(maxVoltage, inputs, fluidInputs, this.getMinTankCapacity(this.getOutputTank()));
+			return this.recipeMap.findRecipe(this.voltageTier, inputs, fluidInputs, this.getMinTankCapacity(this.getOutputTank()));
 		}
 
 
@@ -461,6 +461,12 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			ItemStack machine = controller.getAbilities(GACapabilities.PA_MACHINE_CONTAINER).get(0).getStackInSlot(0);
 
 			RecipeMap<?> rmap = findRecipeMapAndCheckValid(machine);
+
+			MetaTileEntity mte = MachineItemBlock.getMetaTileEntity(machine);
+
+			//Find the voltage tier of the machine.
+			this.voltageTier = GTValues.V[((ITieredMetaTileEntity) mte).getTier()];
+
 
 			this.machineItemStack = machine;
 			this.recipeMap = rmap;
