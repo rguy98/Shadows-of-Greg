@@ -513,6 +513,30 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 				recipe.matches(true, importInventory, importFluids);
 		}
 
+		protected boolean setupAndConsumeRecipeInputs(Recipe recipe, int index) {
+			RecipeMapMultiblockController controller = (RecipeMapMultiblockController) metaTileEntity;
+			if (controller.checkRecipe(recipe, false)) {
+
+				int[] resultOverclock = calculateOverclock(recipe.getEUt(), recipe.getDuration());
+				int totalEUt = resultOverclock[0] * resultOverclock[1];
+				IItemHandlerModifiable importInventory = getInputBuses().get(index);
+				IItemHandlerModifiable exportInventory = getOutputInventory();
+				IMultipleTankHandler importFluids = getInputTank();
+				IMultipleTankHandler exportFluids = getOutputTank();
+				boolean setup = (totalEUt >= 0 ? getEnergyStored() >= (totalEUt > getEnergyCapacity() / 2 ? resultOverclock[0] : totalEUt) :
+					(getEnergyStored() - resultOverclock[0] <= getEnergyCapacity())) &&
+					MetaTileEntity.addItemsToItemHandler(exportInventory, true, recipe.getAllItemOutputs(exportInventory.getSlots())) &&
+					MetaTileEntity.addFluidsToFluidHandler(exportFluids, true, recipe.getFluidOutputs()) &&
+					recipe.matches(true, importInventory, importFluids);
+
+				if (setup) {
+					controller.checkRecipe(recipe, true);
+					return true;
+				}
+			}
+			return false;
+		}
+
 		/**
 		 * Will check if the previous machine stack and the current machine stack are different
 		 * @param newMachineStack - The current machine stack
@@ -685,32 +709,6 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			}
 			return shouldRecheckRecipe;
 		}
-
-
-		protected boolean setupAndConsumeRecipeInputs(Recipe recipe, int index) {
-			RecipeMapMultiblockController controller = (RecipeMapMultiblockController) metaTileEntity;
-			if (controller.checkRecipe(recipe, false)) {
-
-				int[] resultOverclock = calculateOverclock(recipe.getEUt(), recipe.getDuration());
-				int totalEUt = resultOverclock[0] * resultOverclock[1];
-				IItemHandlerModifiable importInventory = getInputBuses().get(index);
-				IItemHandlerModifiable exportInventory = getOutputInventory();
-				IMultipleTankHandler importFluids = getInputTank();
-				IMultipleTankHandler exportFluids = getOutputTank();
-				boolean setup = (totalEUt >= 0 ? getEnergyStored() >= (totalEUt > getEnergyCapacity() / 2 ? resultOverclock[0] : totalEUt) :
-					(getEnergyStored() - resultOverclock[0] <= getEnergyCapacity())) &&
-					MetaTileEntity.addItemsToItemHandler(exportInventory, true, recipe.getAllItemOutputs(exportInventory.getSlots())) &&
-					MetaTileEntity.addFluidsToFluidHandler(exportFluids, true, recipe.getFluidOutputs()) &&
-					recipe.matches(true, importInventory, importFluids);
-
-				if (setup) {
-					controller.checkRecipe(recipe, true);
-					return true;
-				}
-			}
-			return false;
-		}
-
 
 		// ------------------------------- End Distinct Bus Logic ------------------------------------------------
 
