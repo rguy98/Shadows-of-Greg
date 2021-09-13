@@ -464,7 +464,7 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 
 			MetaTileEntity mte = MachineItemBlock.getMetaTileEntity(machine);
 
-			if(mte == null) {
+			if(!(mte instanceof ITieredMetaTileEntity)) {
 				this.voltageTier = 0;
 			}
 			else {
