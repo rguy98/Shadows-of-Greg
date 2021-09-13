@@ -1,13 +1,12 @@
 package gregicadditions.machines;
 
-import gregicadditions.GACapabilities;
-import gregicadditions.GAConfig;
+import gregicadditions.*;
 import gregicadditions.recipes.*;
-import gregtech.api.GTValues;
-import gregtech.api.block.machines.MachineItemBlock;
+import gregtech.api.*;
+import gregtech.api.block.machines.*;
 import gregtech.api.capability.*;
 import gregtech.api.capability.impl.*;
-import gregtech.api.gui.Widget;
+import gregtech.api.gui.*;
 import gregtech.api.metatileentity.*;
 import gregtech.api.metatileentity.multiblock.*;
 import gregtech.api.multiblock.*;
@@ -18,28 +17,26 @@ import gregtech.api.render.*;
 import gregtech.api.util.*;
 import gregtech.common.blocks.BlockMetalCasing.*;
 import gregtech.common.blocks.*;
-import gregtech.common.metatileentities.electric.MetaTileEntityMacerator;
+import gregtech.common.metatileentities.electric.*;
 import it.unimi.dsi.fastutil.*;
 import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.block.state.*;
 import net.minecraft.item.*;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.PacketBuffer;
+import net.minecraft.nbt.*;
+import net.minecraft.network.*;
 import net.minecraft.util.*;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.*;
 import net.minecraftforge.fluids.*;
 import net.minecraftforge.items.*;
 
-import java.util.*;
 import java.util.Arrays;
-import java.util.function.*;
+import java.util.*;
 import java.util.function.Function;
+import java.util.function.*;
 import java.util.stream.*;
 
-import static gregtech.api.gui.widgets.AdvancedTextWidget.withButton;
-import static gregtech.api.gui.widgets.AdvancedTextWidget.withHoverTextTranslate;
-import static gregtech.api.util.Predicates.not;
+import static gregtech.api.gui.widgets.AdvancedTextWidget.*;
+import static gregtech.api.util.Predicates.*;
 
 public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 
@@ -478,32 +475,38 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			this.recipeMap = rmap;
 		}
 
+		// Non-Distinct Logic
 		@Override
 		protected boolean setupAndConsumeRecipeInputs(Recipe recipe) {
+			// use all input buses
+			return setupAndConsumeRecipeInputs(recipe, getInputInventory());
+		}
 
-			IItemHandlerModifiable importInventory = getInputInventory();
+		// Distinct Logic
+		protected boolean setupAndConsumeRecipeInputs(Recipe recipe, int index) {
+			// use a specific input bus
+			return setupAndConsumeRecipeInputs(recipe, getInputBuses().get(index));
+		}
+
+		/**
+		 * If possible, consumes the ingredients for a recipe from the target inventory in preparation for starting the
+		 * craft.
+		 *
+		 * @param recipe          the recipe to prepare to run
+		 * @param importInventory the inventory to check for ingredients
+		 * @return {@code true} if the recipe was successfully set up and ingredients consumed, or
+		 *         {@code false} if the recipe could not be configured and no work was done.
+		 */
+		protected boolean setupAndConsumeRecipeInputs(Recipe recipe, IItemHandlerModifiable importInventory) {
 			IItemHandlerModifiable exportInventory = getOutputInventory();
 			IMultipleTankHandler importFluids = getInputTank();
 			IMultipleTankHandler exportFluids = getOutputTank();
 
 			//Format: EU/t, duration
 			int[] resultOverclock = calculateOverclock(recipe.getEUt(), voltageTier, recipe.getDuration());
-			int totalEUt = resultOverclock[0] * resultOverclock[1] * this.numberOfOperations;
+			int totalEU = resultOverclock[0] * resultOverclock[1] * this.numberOfOperations;
 
-			boolean enoughPower;
-			if(totalEUt >= 0) {
-				int capacity;
-				if(totalEUt > getEnergyCapacity() / 2)
-					capacity = resultOverclock[0];
-				else
-					capacity = totalEUt;
-				enoughPower = getEnergyStored() >= capacity;
-			} else {
-				int power = resultOverclock[0] * this.numberOfOperations;
-				enoughPower = getEnergyStored() - (long) power <= getEnergyCapacity();
-			}
-
-			if(!enoughPower)
+			if(!haveEnoughPowerToProceed(totalEU, resultOverclock[0]))
 				return false;
 
 			return MetaTileEntity.addItemsToItemHandler(exportInventory,
@@ -513,28 +516,21 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 				recipe.matches(true, importInventory, importFluids);
 		}
 
-		protected boolean setupAndConsumeRecipeInputs(Recipe recipe, int index) {
-			RecipeMapMultiblockController controller = (RecipeMapMultiblockController) metaTileEntity;
-			if (controller.checkRecipe(recipe, false)) {
-
-				int[] resultOverclock = calculateOverclock(recipe.getEUt(), recipe.getDuration());
-				int totalEUt = resultOverclock[0] * resultOverclock[1];
-				IItemHandlerModifiable importInventory = getInputBuses().get(index);
-				IItemHandlerModifiable exportInventory = getOutputInventory();
-				IMultipleTankHandler importFluids = getInputTank();
-				IMultipleTankHandler exportFluids = getOutputTank();
-				boolean setup = (totalEUt >= 0 ? getEnergyStored() >= (totalEUt > getEnergyCapacity() / 2 ? resultOverclock[0] : totalEUt) :
-					(getEnergyStored() - resultOverclock[0] <= getEnergyCapacity())) &&
-					MetaTileEntity.addItemsToItemHandler(exportInventory, true, recipe.getAllItemOutputs(exportInventory.getSlots())) &&
-					MetaTileEntity.addFluidsToFluidHandler(exportFluids, true, recipe.getFluidOutputs()) &&
-					recipe.matches(true, importInventory, importFluids);
-
-				if (setup) {
-					controller.checkRecipe(recipe, true);
-					return true;
-				}
+		protected boolean haveEnoughPowerToProceed(int totalEU, int EUt) {
+			boolean enoughPower;
+			if(totalEU >= 0) {
+				int capacity;
+				if(totalEU > getEnergyCapacity() / 2)
+					capacity = EUt;
+				else
+					capacity = totalEU;
+				enoughPower = getEnergyStored() >= capacity;
+			} else {
+				int power = EUt * this.numberOfOperations;
+				enoughPower = getEnergyStored() - (long) power <= getEnergyCapacity();
 			}
-			return false;
+
+			return enoughPower;
 		}
 
 		/**
