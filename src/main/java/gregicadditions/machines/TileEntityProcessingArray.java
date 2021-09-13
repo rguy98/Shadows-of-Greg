@@ -461,30 +461,38 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 
 			MetaTileEntity mte = MachineItemBlock.getMetaTileEntity(machine);
 
-			if(!(mte instanceof ITieredMetaTileEntity)) {
-				this.voltageTier = 0;
-			}
-			else {
-				//Find the voltage tier of the machine.
-				this.voltageTier = GTValues.V[((ITieredMetaTileEntity) mte).getTier()];
-			}
-
-
+			//Find the voltage tier of the machine.
+			this.voltageTier = mte instanceof ITieredMetaTileEntity
+				? GTValues.V[((ITieredMetaTileEntity) mte).getTier()]
+				: 0;
 
 			this.machineItemStack = machine;
 			this.recipeMap = rmap;
 		}
 
-		// Non-Distinct Logic
+		/**
+		 * Sets up and consumes recipe inputs, considering all inputs. Used when Distinct Bus Mode is disabled.
+		 * @param recipe    the recipe to prepare to run
+		 * @return {@code true} if the recipe was successfully set up and ingredients consumed, or
+		 *         {@code false} if the recipe could not be configured and no work was done.
+		 * @see #setupAndConsumeRecipeInputs(Recipe recipe, IItemHandlerModifiable importInventory)
+		 */
 		@Override
 		protected boolean setupAndConsumeRecipeInputs(Recipe recipe) {
 			// use all input buses
 			return setupAndConsumeRecipeInputs(recipe, getInputInventory());
 		}
 
-		// Distinct Logic
+		/**
+		 * Sets up and consumes recipe inputs targeting a predetermined input bus. Used for Distinct Bus mode.
+		 * @param recipe    the recipe to prepare to run
+		 * @param index     the index of the predetermined index bus
+		 * @return {@code true} if the recipe was successfully set up and ingredients consumed, or
+		 *         {@code false} if the recipe could not be configured and no work was done.
+		 * @see #setupAndConsumeRecipeInputs(Recipe recipe, IItemHandlerModifiable importInventory)
+		 */
 		protected boolean setupAndConsumeRecipeInputs(Recipe recipe, int index) {
-			// use a specific input bus
+			// use the specified input bus
 			return setupAndConsumeRecipeInputs(recipe, getInputBuses().get(index));
 		}
 
@@ -502,11 +510,7 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			IMultipleTankHandler importFluids = getInputTank();
 			IMultipleTankHandler exportFluids = getOutputTank();
 
-			//Format: EU/t, duration
-			int[] resultOverclock = calculateOverclock(recipe.getEUt(), voltageTier, recipe.getDuration());
-			int totalEU = resultOverclock[0] * resultOverclock[1] * this.numberOfOperations;
-
-			if(!haveEnoughPowerToProceed(totalEU, resultOverclock[0]))
+			if(!haveEnoughPowerToProceed(recipe, voltageTier, this.numberOfOperations))
 				return false;
 
 			return MetaTileEntity.addItemsToItemHandler(exportInventory,
@@ -516,7 +520,21 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 				recipe.matches(true, importInventory, importFluids);
 		}
 
-		protected boolean haveEnoughPowerToProceed(int totalEU, int EUt) {
+		/**
+		 * Determines if there is sufficient energy buffer to proceed with running a parallelized recipe overclocked to
+		 * a given tier.
+		 *
+		 * @param recipe        the Recipe to perform
+		 * @param voltageTier   the voltage tier to overclock to in the computations
+		 * @param numOperations the number of times this recipe is to be multiplied by
+		 * @return {@code true} if there is enough energy to proceed, {@code false} otherwise.
+		 */
+		protected boolean haveEnoughPowerToProceed(Recipe recipe, long voltageTier, int numOperations) {
+			//Format: EU/t, duration
+			int[] resultOverclock = calculateOverclock(recipe.getEUt(), voltageTier, recipe.getDuration());
+			int totalEU = resultOverclock[0] * resultOverclock[1] * numOperations;
+			int EUt = resultOverclock[0];
+
 			boolean enoughPower;
 			if(totalEU >= 0) {
 				int capacity;
@@ -526,7 +544,7 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 					capacity = totalEU;
 				enoughPower = getEnergyStored() >= capacity;
 			} else {
-				int power = EUt * this.numberOfOperations;
+				int power = EUt * numOperations;
 				enoughPower = getEnergyStored() - (long) power <= getEnergyCapacity();
 			}
 
