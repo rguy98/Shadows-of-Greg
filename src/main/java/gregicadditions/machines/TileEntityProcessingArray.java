@@ -464,8 +464,14 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 
 			MetaTileEntity mte = MachineItemBlock.getMetaTileEntity(machine);
 
-			//Find the voltage tier of the machine.
-			this.voltageTier = GTValues.V[((ITieredMetaTileEntity) mte).getTier()];
+			if(mte == null) {
+				this.voltageTier = 0;
+			}
+			else {
+				//Find the voltage tier of the machine.
+				this.voltageTier = GTValues.V[((ITieredMetaTileEntity) mte).getTier()];
+			}
+
 
 
 			this.machineItemStack = machine;
