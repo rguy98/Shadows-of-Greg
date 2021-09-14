@@ -150,7 +150,10 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 	}
 
 	protected static class ProcessingArrayWorkable extends MultiblockRecipeLogic {
-		long voltageTier;
+		/** The voltage this machine operates at */
+		long machineVoltage;
+		/** The GTValues.V tier ordinal for the machine's tier */
+		int machineTier;
 		int numberOfMachines = 0;
 		int numberOfOperations = 0;
 		ItemStack machineItemStack = null;
@@ -181,7 +184,10 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 				return null;
 			}
 
-			return this.recipeMap.findRecipe(Math.min(this.voltageTier, maxVoltage), inputs, fluidInputs, this.getMinTankCapacity(this.getOutputTank()));
+			return this.recipeMap.findRecipe(Math.min(this.machineVoltage, maxVoltage),
+			                                 inputs,
+			                                 fluidInputs,
+			                                 this.getMinTankCapacity(this.getOutputTank()));
 		}
 
 
@@ -191,13 +197,6 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 				return null;
 			}
 
-			MetaTileEntity mte = MachineItemBlock.getMetaTileEntity(machineStack);
-			if(mte == null) {
-				return null;
-			}
-
-			//Find the voltage tier of the machine.
-			this.voltageTier = GTValues.V[((ITieredMetaTileEntity) mte).getTier()];
 			//Find the number of machines
 			this.numberOfMachines = Math.min(GAConfig.processingArray.processingArrayMachineLimit, machineStack.getCount());
 
@@ -234,14 +233,13 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			                                 .EUt(recipe.getEUt())
 			                                 .duration(recipe.getDuration());
 
-			//Don't allow MV or LV macerators to have chanced outputs, because they do not have the slots for chanced outputs
-			if(!(mte instanceof MetaTileEntityMacerator && (((MetaTileEntityMacerator) mte).getTier() == 1 || ((MetaTileEntityMacerator) mte).getTier() == 2))) {
+			//Don't allow MV or LV macerators to have chanced outputs, because they do not have the slots for chanced
+			MetaTileEntity mte = MachineItemBlock.getMetaTileEntity(machineStack);
+			if(!(mte instanceof MetaTileEntityMacerator && this.machineTier < GTValues.HV))
 				copyChancedItemOutputs(newRecipe, recipe, minMultiplier);
-			}
 
 			this.numberOfOperations = minMultiplier;
 			return newRecipe.build().getResult();
-
 		}
 
 		protected static void copyChancedItemOutputs(RecipeBuilder<?> newRecipe,
@@ -462,9 +460,11 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			MetaTileEntity mte = MachineItemBlock.getMetaTileEntity(machine);
 
 			//Find the voltage tier of the machine.
-			this.voltageTier = mte instanceof ITieredMetaTileEntity
-				? GTValues.V[((ITieredMetaTileEntity) mte).getTier()]
+			this.machineTier = mte instanceof ITieredMetaTileEntity
+				? ((ITieredMetaTileEntity) mte).getTier()
 				: 0;
+
+			this.machineVoltage = GTValues.V[this.machineTier];
 
 			this.machineItemStack = machine;
 			this.recipeMap = rmap;
@@ -510,7 +510,7 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			IMultipleTankHandler importFluids = getInputTank();
 			IMultipleTankHandler exportFluids = getOutputTank();
 
-			if(!haveEnoughPowerToProceed(recipe, voltageTier, this.numberOfOperations))
+			if(!haveEnoughPowerToProceed(recipe, machineVoltage, this.numberOfOperations))
 				return false;
 
 			return MetaTileEntity.addItemsToItemHandler(exportInventory,
@@ -533,7 +533,7 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			//Format: EU/t, duration
 			int[] resultOverclock = calculateOverclock(recipe.getEUt(), voltageTier, recipe.getDuration());
 			int totalEU = resultOverclock[0] * resultOverclock[1] * numOperations;
-			int EUt = resultOverclock[0];
+			int EUt = resultOverclock[0] * numOperations;
 
 			boolean enoughPower;
 			if(totalEU >= 0) {
@@ -728,12 +728,12 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 
 		@Override
 		protected void setupRecipe(Recipe recipe) {
-			int[] resultOverclock = calculateOverclock(recipe.getEUt(), voltageTier, recipe.getDuration());
+			int[] resultOverclock = calculateOverclock(recipe.getEUt(), machineVoltage, recipe.getDuration());
 			this.progressTime = 1;
 			setMaxProgress(resultOverclock[1]);
 			this.recipeEUt = resultOverclock[0] * this.numberOfOperations;
 			this.fluidOutputs = GTUtility.copyFluidList(recipe.getFluidOutputs());
-			int tier = Math.min(getMachineTierForRecipe(recipe), GTUtility.getTierByVoltage(voltageTier));
+			int tier = Math.min(getMachineTierForRecipe(recipe), machineTier);
 			this.itemOutputs = GTUtility.copyStackList(recipe.getResultItemOutputs(getOutputInventory().getSlots(),
 			                                                                       random,
 			                                                                       tier));
