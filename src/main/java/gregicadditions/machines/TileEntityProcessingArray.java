@@ -635,12 +635,16 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			//Update the stored machine stack and recipe map variables
 			findMachineStack();
 
+			// Cache the old fluid inputs
+			final FluidStack[] cachedLastFluids =
+				(lastFluidInputs == null) ? null : Arrays.copyOf(this.lastFluidInputs, lastFluidInputs.length);
+
 			//Check to see if the machine stack has changed first
 			//TODO Could this machine bus specific check be used in the combined code?
 			boolean machineDirty = checkRecipeInputsDirty(machineBus, importFluids);
 			if(machineDirty || forceRecipeRecheck) {
 				//Check if the machine that the PA is operating on has changed
-				//Is this check needed if machineDirty is true?
+				//TODO Is this check needed if machineDirty is true?
 				if(didMachinesChange(machineItemStack)) {
 					previousRecipe = null;
 					oldMachineStack = null;
@@ -662,6 +666,9 @@ public class TileEntityProcessingArray extends RecipeMapMultiblockController {
 			oldMachineStack = null;
 			for (int i = 0; i < importInventory.size(); i++) {
 				IItemHandlerModifiable bus = importInventory.get(i);
+				// Restore the cached fluid inputs before each per-bus dirty check to prevent false negatives
+				lastFluidInputs =
+					(cachedLastFluids == null) ? null : Arrays.copyOf(cachedLastFluids, cachedLastFluids.length);
 				boolean dirty = checkRecipeInputsDirty(bus, importFluids, i);
 				if (dirty || forceRecipeRecheck) {
 					this.forceRecipeRecheck = false;
