@@ -40,7 +40,7 @@ import net.minecraftforge.registries.IForgeRegistry;
 @Mod(modid = GregicAdditions.MODID, name = GregicAdditions.NAME, version = GregicAdditions.VERSION, dependencies = "required-after:gregtech@[1.17.0.764,);after:forestry;after:tconstruct;")
 public class GregicAdditions {
 	public static final String MODID = "gtadditions";
-	public static final String NAME = "Shadows of Greg";
+	public static final String NAME = "Shadows of Greg: Technetium Edition";
 	public static final String VERSION = "@VERSION@";
 
 	@SidedProxy(modId = MODID, clientSide = "gregicadditions.bees.ClientProxy", serverSide = "gregicadditions.bees.CommonProxy")
